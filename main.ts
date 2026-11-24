@@ -22,10 +22,43 @@ const ENTRY =
 // $MAKEFUN_OUTPUT_DIR; without it, write to the local output/
 // directory next to this file. Never a hardcoded absolute path:
 // the kit harness reads from its own temp dir.
-const outDir = process.env.MAKEFUN_OUTPUT_DIR
-  ? path.resolve(process.env.MAKEFUN_OUTPUT_DIR)
-  : path.join(process.cwd(), "output");
+function resolveOutputPath(): string {
+  if (process.env.MAKEFUN_OUTPUT_DIR) {
+    return path.resolve(process.env.MAKEFUN_OUTPUT_DIR);
+  }
+  return path.join(process.cwd(), "output");
+}
 
+// Gate the entry text before it is written: one line, 1–200
+// characters, no leading or trailing whitespace, and the file we
+// write must read back byte-for-byte identical.
+function validateEntry(text: string): void {
+  if (text.trim().length === 0) {
+    console.error("ERROR: entry is empty.");
+    process.exit(1);
+  }
+
+  if (text.length < 1 || text.length > 200) {
+    console.error(
+      `ERROR: entry must be 1 to 200 characters, found ${text.length}.`
+    );
+    process.exit(1);
+  }
+
+  if (text.includes("\n") || text.includes("\r")) {
+    console.error("ERROR: entry must be exactly one line.");
+    process.exit(1);
+  }
+
+  if (text !== text.trim()) {
+    console.error("ERROR: entry has leading or trailing whitespace.");
+    process.exit(1);
+  }
+}
+
+validateEntry(ENTRY);
+
+const outDir = resolveOutputPath();
 fs.mkdirSync(outDir, { recursive: true });
 
 const outPath = path.join(outDir, "entry.txt");
@@ -34,28 +67,6 @@ fs.writeFileSync(outPath, ENTRY, "utf8");
 const readBack = fs.readFileSync(outPath, "utf8");
 if (readBack !== ENTRY) {
   console.error("ERROR: read-back does not match the entry byte-for-byte.");
-  process.exit(1);
-}
-
-if (ENTRY.trim().length === 0) {
-  console.error("ERROR: entry is empty.");
-  process.exit(1);
-}
-
-if (ENTRY.length < 1 || ENTRY.length > 200) {
-  console.error(
-    `ERROR: entry must be 1 to 200 characters, found ${ENTRY.length}.`
-  );
-  process.exit(1);
-}
-
-if (ENTRY.includes("\n") || ENTRY.includes("\r")) {
-  console.error("ERROR: entry must be exactly one line.");
-  process.exit(1);
-}
-
-if (ENTRY !== ENTRY.trim()) {
-  console.error("ERROR: entry has leading or trailing whitespace.");
   process.exit(1);
 }
 
